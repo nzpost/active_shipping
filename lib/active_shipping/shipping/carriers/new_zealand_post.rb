@@ -8,7 +8,7 @@ module ActiveMerchant
       cattr_reader :name
       @@name = "New Zealand Post"
 
-      URL = "http://workshop.nzpost.co.nz/api/v1/rate.xml"
+      URL = "http://api.nzpost.co.nz/ratefinder/rate.xml"
 
       # Override to return required keys in options hash for initialize method.
       def requirements
@@ -19,6 +19,7 @@ module ActiveMerchant
       def find_rates(origin, destination, packages, options = {})
         packages = Array(packages)
         rate_responses = []
+        
         packages.each do |package|
           if package.tube?
             request_hash = build_tube_request_params(origin, destination, package, options)
@@ -29,6 +30,7 @@ module ActiveMerchant
           response = ssl_get(url)
           rate_responses << parse_rate_response(origin, destination, package, response, options)
         end
+
         combine_rate_responses(rate_responses, packages)
       end
 
@@ -93,12 +95,12 @@ module ActiveMerchant
       end
 
       def combine_rate_responses(rate_responses, packages)
-        #if there are any failed responses, return on that response
+        # if there are any failed responses, return on that response
         rate_responses.each do |r|
           return r if !r.success?
         end
 
-        #group rate estimates by delivery type so that we can exclude any incomplete delviery types
+        # group rate estimates by delivery type so that we can exclude any incomplete delivery types
         rate_estimate_delivery_types = {}
         rate_responses.each do |rr|
           rr.rate_estimates.each do |re|
@@ -107,7 +109,7 @@ module ActiveMerchant
         end
         rate_estimate_delivery_types.delete_if{ |type, re| re.size != packages.size }
 
-        #combine cost estimates for remaining packages
+        # combine cost estimates for remaining packages
         combined_rate_estimates = []
         rate_estimate_delivery_types.each do |type, re|
           total_price = re.sum(&:total_price)
@@ -119,6 +121,7 @@ module ActiveMerchant
                                                      :service_code => r.service_code,
                                                      :packages => packages)
         end
+        
         RateResponse.new(true, "Success", {}, :rates => combined_rate_estimates)
       end
 
