@@ -30,7 +30,7 @@ class NewZealandPostTest < Test::Unit::TestCase
                    
       flunk "expected an ActiveMerchant::Shipping::ResponseError to be raised"
     rescue ActiveMerchant::Shipping::ResponseError => e
-      assert_equal 'length Value is too large', e.message
+      assert_match /Length can only be between 0 and 150cm/, e.message
     end
   end
 
