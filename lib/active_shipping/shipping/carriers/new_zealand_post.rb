@@ -31,7 +31,7 @@ module ActiveMerchant
           rate_responses << parse_rate_response(origin, destination, package, response, options)
         end
 
-        combine_rate_responses(rate_responses, packages)
+        combine_rate_responses(rate_responses, packages, origin, destination)
       end
 
       def maximum_weight
@@ -94,35 +94,26 @@ module ActiveMerchant
         end
       end
 
-      def combine_rate_responses(rate_responses, packages)
+      def combine_rate_responses(rate_responses, packages, origin, destination)
+
+        return rate_responses.first if rate_responses.size == 1
+
         # if there are any failed responses, return on that response
         rate_responses.each do |r|
           return r if !r.success?
         end
-
-        # group rate estimates by delivery type so that we can exclude any incomplete delivery types
-        rate_estimate_delivery_types = {}
-        rate_responses.each do |rr|
-          rr.rate_estimates.each do |re|
-            (rate_estimate_delivery_types[re.service_code] ||= []) << re
-          end
-        end
-        rate_estimate_delivery_types.delete_if{ |type, re| re.size != packages.size }
-
-        # combine cost estimates for remaining packages
-        combined_rate_estimates = []
-        rate_estimate_delivery_types.each do |type, re|
-          total_price = re.sum(&:total_price)
-          r = re.first
-          combined_rate_estimates << RateEstimate.new(r.origin, r.destination, r.carrier,
-                                                     r.service_name,
-                                                     :total_price => total_price,
-                                                     :currency => r.currency,
-                                                     :service_code => r.service_code,
-                                                     :packages => packages)
+        
+        total_price = rate_responses.sum do |rr|
+          rr.rate_estimates.first.total_price
         end
         
-        RateResponse.new(true, "Success", {}, :rates => combined_rate_estimates)
+        RateResponse.new(true, "Success", {}, 
+                         :rates => RateEstimate.new(origin, destination, self,
+                                                    'Postage Only',
+                                                    :total_price => total_price,
+                                                    :currency => 'NZD',
+                                                    :service_code => 'postage_only',
+                                                    :packages => packages))
       end
 
       def response_success?(xml)

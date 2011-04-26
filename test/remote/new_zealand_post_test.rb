@@ -49,35 +49,33 @@ class NewZealandPostTest < Test::Unit::TestCase
   def test_multiple_packages_are_combined_correctly
     response_wii = @carrier.find_rates(@locations[:wellington],
                                        @locations[:wellington],
-                                       @packages.values_at(:wii))
+                                       @packages[:wii])
     response_book = @carrier.find_rates(@locations[:wellington],
                                         @locations[:wellington],
-                                        @packages.values_at(:book))
+                                        @packages[:book])
     response_combined = @carrier.find_rates(@locations[:wellington],
                                             @locations[:wellington],
                                             @packages.values_at(:book, :wii))
 
+    # ensure we got something back
+    assert response_combined.is_a?(RateResponse)
+    assert response_combined.success?
 
-    wii_rates, book_rates, combined_rates = {}, {}, {}
-    response_wii.rate_estimates.each{ |r| wii_rates[r.service_code] = r.total_price }
-    response_book.rate_estimates.each{ |r| book_rates[r.service_code] = r.total_price }
-    response_combined.rate_estimates.each{ |r| combined_rates[r.service_code] = r.total_price }
+    assert_equal 1, response_wii.rate_estimates.size, 'the API should have selected the cheapest postage_only product (just one)'
+    assert response_wii.rates.first.is_a?(RateEstimate)
+    assert_equal 1, response_book.rate_estimates.size, 'the API should have selected the cheapest postage_only product (just one)'
+    assert response_book.rates.first.is_a?(RateEstimate)
+    assert_equal 1, response_combined.rate_estimates.size, 'should have created a single combined rate_estimate'
+    assert response_combined.rates.first.is_a?(RateEstimate)
 
-    # every item in combined rates is made up of entries from the other two rates
-    combined_rates.each do |service_code, total_price|
-      assert_equal (wii_rates[service_code] + book_rates[service_code]), total_price
-    end
-
-    # the size of the elements common between wii and book rates is the size of the 
-    # combined rates hash.
-    assert_equal (wii_rates.keys & book_rates.keys).count, combined_rates.size
+    assert_equal response_combined.rates.first.total_price, response_wii.rates.first.total_price + response_book.rates.first.total_price
 
     #uncomment this test for visual display of combining rates
-    #puts "\nWii:"
-    #response_wii.rate_estimates.each{ |r| puts "\nTotal Price: #{r.total_price}\nService Name: #{r.service_name}" }
-    #puts "\nBook:"
-    #response_book.rate_estimates.each{ |r| puts "\nTotal Price: #{r.total_price}\nService Name: #{r.service_name}" }
-    #puts "\nCombined"
-    #response_combined.rate_estimates.each{ |r| puts "\nTotal Price: #{r.total_price}\nService Name: #{r.service_name}" }
+    # puts "\nWii:"
+    # response_wii.rate_estimates.each{ |r| puts "\nTotal Price: #{r.total_price}\nService Name: #{r.service_name} (#{r.service_code})" }
+    # puts "\nBook:"
+    # response_book.rate_estimates.each{ |r| puts "\nTotal Price: #{r.total_price}\nService Name: #{r.service_name} (#{r.service_code})" }
+    # puts "\nCombined"
+    # response_combined.rate_estimates.each{ |r| puts "\nTotal Price: #{r.total_price}\nService Name: #{r.service_name} (#{r.service_code})" }
   end
 end
